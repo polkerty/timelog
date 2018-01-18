@@ -1,0 +1,4313 @@
+<html>
+
+<head>
+
+<script src='../jquery.js' ></script>
+<script>
+
+/// INIT
+
+// t(ime)I(item)Log, t(ime)C(ompany)Log, t(i1me)P(roject)Log, , t(imeC)L(ient)Log
+
+var tILog;
+var tCLog;
+var tPlog;
+var tLLog, ONLINE  = (localStorage.ONLINE) ? JSON.parse(localStorage.ONLINE) : false;
+localStorage.ONLINE = JSON.stringify(ONLINE);
+
+// In case different users are stored on the portal and a local version. (Or some other similar issue.)
+var USER_ID  = (P("user").length > 0 && P("success") == "true") ? P("user") : ((localStorage.USER_ID) ? JSON.parse(localStorage.USER_ID) : Math.floor( Math.random() * 1000000000 ));
+localStorage.USER_ID = JSON.stringify(USER_ID);
+
+var PWD  = (P("pwd").length > 0 && P("success") == "true") ? P("pwd") : ((localStorage.PWD) ? JSON.parse(localStorage.PWD) : "");
+localStorage.PWD = JSON.stringify(PWD);
+
+var AUTO_SAVE  = (localStorage.AUTO_SAVE) ? JSON.parse(localStorage.AUTO_SAVE) : false;
+localStorage.AUTO_SAVE = JSON.stringify(AUTO_SAVE);
+
+var DIRTY  = (localStorage.DIRTY) ? JSON.parse(localStorage.DIRTY) : false;
+localStorage.DIRTY = JSON.stringify(DIRTY);
+
+var OPS  = (localStorage.OPS) ? JSON.parse(localStorage.OPS) : "{'field1':'Company','field2':'Project','field3':'Client'}";
+localStorage.OPS = JSON.stringify(OPS);
+
+var LOCATION = window.location;
+
+localStorage.PARAM = ""; // clear for next time
+
+var ONLINE_SAME_AS_OFFLINE = true;
+
+if ( !ONLINE )
+	loadAll();
+else {
+
+	if ( P("save") == "true" || P("success") != "true" )
+		loadAll();
+
+	else fetchOnlineData();
+}
+
+function saveAll( f, u, p ) {
+	
+	localStorage.DIRTY = "true";
+	DIRTY = true;
+	
+	if ( !u ) var u = USER_ID;
+	if ( !p ) var p = PWD;
+	
+	localStorage.tILog = JSON.stringify(tILog);
+	localStorage.tCLog = JSON.stringify(tCLog);
+	localStorage.tPLog = JSON.stringify(tPLog);
+	localStorage.tLLog = JSON.stringify(tLLog);
+	localStorage.OPS = JSON.stringify(OPS);
+	
+	if ( (ONLINE && AUTO_SAVE) || f ) {
+		
+		localStorage.DIRTY = "false";
+		DIRTY = false;		
+		
+		$("#save-t").val( localStorage.tILog );
+		$("#save-c").val( localStorage.tCLog );
+		$("#save-p").val( localStorage.tPLog );
+		$("#save-l").val( localStorage.tLLog );
+		$("#save-o").val( localStorage.OPS );
+		$("#save-user").val( u );
+		$("#save-pwd").val( p );
+		$("#save-return").val( USER_ID );
+		$("#save-returnp").val( PWD );
+	
+		$("#save")[0].submit();
+	
+	}
+	
+	if ( uiLoadAll )
+		uiLoadAll();
+		
+	/*if ( c ) {
+	
+		if ( fetchOnlineData ( true ) == true )
+			modalDialog( "saved" );
+		else modalDialog( "unsaved" );
+	
+	}*/
+
+}
+
+function loadAll() {
+	
+	if (localStorage.tILog)
+		tILog = JSON.parse(localStorage.tILog);
+	else localStorage.tILog = JSON.stringify(tILog);
+	
+	if (localStorage.tCLog)
+		tCLog = JSON.parse(localStorage.tCLog);
+	else localStorage.tCLog = JSON.stringify(tCLog);
+	
+	if (localStorage.tPLog)
+		tPLog = JSON.parse(localStorage.tPLog);
+	else localStorage.tPLog = JSON.stringify(tPLog);
+
+	if (localStorage.tLLog)
+		tLLog = JSON.parse(localStorage.tLLog);
+	else localStorage.tLLog = JSON.stringify(tLLog);
+
+	if (localStorage.OPS)
+		OPS = JSON.parse(localStorage.OPS);
+	else localStorage.OPS = JSON.stringify(OPS);
+	
+	if ( uiLoadAll )
+		uiLoadAll();
+		
+}
+	
+function fetchOnlineData( k ) {
+		
+	registerUser ( USER_ID , PWD, "", fetchOnlineData2, k );	// We are fetching data directly, but we need to ensure that the data is available.
+
+}
+
+function fetchOnlineData2 ( h, d ) { // !! skip the registration step !!
+	
+	setTimeout('modalDialog("online-wait");',0);
+				
+		AJAX ( "http://portal.brazealcontent.com/tl/get.php?user=" + USER_ID + "&password=" + PWD, callback2, d );
+		
+		function callback2 ( k, m ) {
+		
+			var a = k.split("\n");
+		
+			localStorage.k = JSON.stringify(k);
+			localStorage.a = JSON.stringify(a);
+		
+				for ( var i=0; i<a.length; i++ ) {
+					try{	
+						a[i] = JSON.parse( a[i] ) ; 
+					}
+					catch(e) {  modalDialogSwitch("acct-err"); return; }
+				
+				}
+				
+			var b = [];
+			
+			b[0] = JSON.stringify(a[0]);
+			b[1] = JSON.stringify(a[1]);
+			b[2] = JSON.stringify(a[2]);
+			b[3] = JSON.stringify(a[3]);
+			b[4] = JSON.stringify(a[4]);
+			
+			if ( m ) {
+			
+				ONLINE_SAME_AS_OFFLINE = (
+				
+					localStorage.tILog == b[0] &&
+					localStorage.tCLog == b[1] &&
+					localStorage.tPLog == b[2] &&
+					localStorage.tLLog == b[3] )			
+			}
+			
+			else {
+						
+				localStorage.tILog = b[0];
+				localStorage.tCLog = b[1];
+				localStorage.tPLog = b[2];
+				localStorage.tLLog = b[3];
+				localStorage.OPS = b[4];
+			
+			}
+			
+			loadAll();	
+				
+			modalDialogClose("online-wait");
+		
+		}
+		
+}
+
+function registerUser ( user, password, new_password, callback, k ) {
+
+		AJAX ( "http://portal.brazealcontent.com/tl/register.php?user=" + user + "&password=" + password + "&new_password=" + new_password, callback, k, "GET", false, regchk );
+		
+		function regchk ( d ) {
+			
+			localStorage.d = d;
+			setTimeout('WA.uninstall("#chkbullets");',0);
+			
+			switch ( d ) {
+				
+				case "4": return PASS_CHNG_GOOD();
+				case "3": return RIGHT_PASS();
+				case "2": return PASS_CHNG_BAD();
+				case "1": return WRONG_PASS();
+				case "0": return NEW_USR();
+				
+			}
+		
+		}
+}
+
+function PASS_CHNG_GOOD() {
+
+	$("#wrongpassword").hide();
+	$("#o_pass").removeClass("inv");
+	
+	PWD = localStorage.p;
+	localStorage.PWD = JSON.stringify(PWD);
+		
+	modalDialogClose();
+	
+	return true;
+
+}
+
+function RIGHT_PASS() {
+	
+ 	$("#wrongpassword").hide();
+	$("#o_pass").removeClass("inv");
+	
+	PWD = localStorage.p;
+	localStorage.PWD = JSON.stringify(PWD);
+	
+	USER_ID = localStorage.u;
+	localStorage.USER_ID = JSON.stringify(USER_ID);	
+
+	return true;
+
+}
+
+function PASS_CHNG_BAD() {
+		
+	$("#wrongpassword").show();
+	$("#o_pass").addClass("inv");
+	
+	modalDialogClose();
+	return false; // STOP
+
+}
+
+function WRONG_PASS() {
+		
+	$("#wrongpassword").show();
+	$("#o_pass").addClass("inv");
+		
+	return false; // STOP
+
+}
+
+function NEW_USR () {
+
+	$("#wrongpassword").hide();
+	$("#o_pass").removeClass("inv");
+
+	return true;
+
+}
+
+function acct() {
+
+$("#o_user").val(USER_ID);
+$("#o_pass").val(PWD);
+$("#o_np").val("");
+
+//$("#o_pass").addClass("inv");
+
+modalDialogSwitch("acct");
+
+}
+
+function us(){
+		
+	var vars = [], hash;
+  	var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+  	
+  	for (var i = 0; i < hashes.length; i++) {
+  	
+	      hash = hashes[i].split('=');
+	      vars.push(hash[0]);
+	      vars[hash[0]] = hash[1];
+	      
+	}	
+	return vars;
+}
+
+function u(name){
+	
+	if (!us()[name]) return '';
+	else return decodeURI(us()[name]);
+
+}
+	  
+
+function Ps(){
+	
+	if ( !localStorage.PARAM ) localStorage.PARAM = "";
+	var vars = [], hash;
+  	var hashes = localStorage.PARAM.split('&');
+  	
+  	for (var i = 0; i < hashes.length; i++) {
+  	
+	      hash = hashes[i].split('=');
+	      vars.push(hash[0]);
+	      vars[hash[0]] = hash[1];
+	      
+	}	
+	return vars;
+}
+
+function P(name){
+	
+	if (!Ps()[name]) return '';
+	else return decodeURI(Ps()[name]);
+
+}
+	  
+function configureOptions() {
+
+	$("#o_arch").attr( "checked", SHOW_ARCHIVED );
+	$("#o_online").attr( "checked", ONLINE );
+	$("#userid_disp").html( USER_ID );
+	$("#o_np").val( PWD );
+	$("#o_pass").val( "" );
+	$("#o_userid").val( USER_ID );
+	$("#o_autosave").attr( "checked", AUTO_SAVE );
+
+}
+
+function AJAX ( url, callback, variable, method, async, fn ) {
+			
+			if ( !url ) return;
+			if ( !callback ) callback = function(){};
+			if ( !method ) method = "GET";
+			if (!async ) async = true;
+
+			var x;
+			
+			if (window.XMLHttpRequest)
+ 				x=new XMLHttpRequest();
+  			else
+  				x=new ActiveXObject("Microsoft.XMLHTTP");
+  					
+			x.onreadystatechange=function(){
+			
+  				if (x.readyState==4 && x.status==200)
+  					if ( !fn || fn(x.responseText) ) callback(x.responseText, variable);
+  				
+  			}
+  			
+  			x.open( method,url,async );
+			x.send();	
+}
+
+
+/// Define various kinds of data
+
+function TimeItem ( b, e, len, cid, proj, lid, comments, arch ) {
+
+	this.length = len;
+	this.starts = b;
+	this.ends = e;
+	
+	var l = tILog.length;
+	this.tid = (l) ? (tILog[l-1].tid + 1) : 0;
+	
+	this.cid = cid*1;
+	
+	this.pid = proj*1;
+
+	this.lid = lid*1;
+	
+	this.comments = comments;
+
+	arch = ( arch == "checked" || arch == true )
+
+	this.arch = arch;
+
+}
+
+function Company ( name, arch ) {
+
+	this.name = name;
+	
+	var l = tCLog.length;
+	this.cid = (l) ? (tCLog[l-1].cid + 1) : 0;
+	
+	//this.proj = [];
+	
+	//this.time = [];
+
+	arch = ( arch == "checked" || arch == true )
+
+	this.arch = arch;
+
+}
+
+function Project ( name, cid, lid, comments, arch ) {
+
+	this.name = name;
+	this.cid = cid*1;
+	this.lid = lid*1;
+	
+	var l = tPLog.length;
+	this.pid = (l) ? (tPLog[l-1].pid + 1) : 0;
+
+	this.comments = comments;
+	
+	arch = ( arch == "checked" || arch == true )
+	
+	this.arch = arch;
+
+}
+
+function Client ( name, comments, arch ) {
+
+	this.name = name;
+	
+	var l = tLLog.length;
+	
+	this.lid = (l) ? (tLLog[l-1].lid + 1) : 0;
+
+	arch = ( arch == "checked" || arch == true )
+
+	this.arch = arch;
+
+}
+
+/// Data management
+
+function saveTimeItem() {
+
+	var t = time;
+	var cid = document.getElementById("time_csel").value;
+	var proj = document.getElementById("time_psel").value;
+	var lid = document.getElementById("time_lsel").value;
+	var com = document.getElementById("comments").value;
+	
+	var s = timerStartDate;
+	var e = timerStopDate;
+	
+	var ti = new TimeItem ( s, e, t, cid, proj, lid, com, false );
+	
+	tILog.push(ti);
+	
+	saveAll();
+
+}
+
+function newt() {
+
+	$("#t_hr").val("");
+	$("#t_min").val("");
+	$("#t_sec").val("");
+	$("#t_beg").val("");
+	$("#t_end").val("");
+	$("#t_cid").val("");
+	$("#t_lid").val("");
+	$("#t_pid").val("");
+	$("#t_com").val("");
+		
+	modalDialog("logtime");
+
+}
+
+// Data retrieval
+
+var SHOW_ARCHIVED  = (localStorage.SHOW_ARCHIVED) ? JSON.parse(localStorage.SHOW_ARCHIVED) : false;
+localStorage.SHOW_ARCHIVED = JSON.stringify(SHOW_ARCHIVED);
+
+function gett (tid, index) { // TODO: use Quicksort algorithm
+
+	for ( var i=0; i<tILog.length; i++ ) {
+		if (tILog[i].tid == tid) {
+			if (!index) 
+				return tILog[i];	
+			else
+				return [tILog[i], i];
+		}
+		
+	}
+
+	return false;
+	
+}
+
+function sett (t) { // TODO: use Quicksort algorithm
+	
+	var tid = t.tid;
+	var i = gett( tid, true )[1]
+	tILog[i] = t;			
+}
+
+function getc (cid, index) { // TODO: use Quicksort algorithm
+
+	for ( var i=0; i<tCLog.length; i++ ) {
+		if (tCLog[i].cid == cid) {
+			if (!index) 
+				return tCLog[i];	
+			else
+				return [tCLog[i], i];
+		}
+		
+	}
+
+	return false;
+	
+}
+
+function delt ( tid ) {
+
+	var t = gett ( tid );
+	
+	var a = [];
+	
+	for ( var i = 0; i < tILog.length; i ++ ) {
+	
+		if ( tILog[i] != t )
+			a.push(tILog[i] );
+	
+	}
+	
+	tILog = a;
+	saveAll();
+
+}
+
+function setc (c) { // TODO: use Quicksort algorithm
+	
+	var cid = c.cid;
+	var i = getc( cid, true )[1]
+	tCLog[i] = c;			
+}
+
+function delc ( cid ) {
+
+	var c = getc ( cid );
+	
+	var a = [];
+	
+	for ( var i = 0; i < tCLog.length; i ++ ) {
+	
+		if ( tCLog[i] != c )
+			a.push(tCLog[i] );
+	
+	}
+	
+	tCLog = a;
+	saveAll();
+
+}
+
+function getp (pid, index) {
+
+	for ( var i=0; i<tPLog.length; i++ ) {
+		if (tPLog[i].pid == pid) {
+			if (!index) 
+				return tPLog[i];	
+			else
+				return [tPLog[i], i];
+		}	
+	}
+	
+	return false;
+}
+
+function setp (p) { // TODO: use Quicksort algorithm
+	
+	var pid = p.pid;
+	var i = getp( pid, true )[1]
+	tPLog[i] = p;			
+}
+
+function delp ( pid ) {
+
+	var p = getp ( pid );
+	
+	var a = [];
+	
+	for ( var i = 0; i < tPLog.length; i ++ ) {
+	
+		if ( tPLog[i] != p )
+			a.push(tPLog[i] );
+	
+	}
+	
+	tPLog = a;
+	saveAll();
+
+}
+
+function getl (lid, index) {
+
+	for ( var i=0; i<tLLog.length; i++ ) {
+		if (tLLog[i].lid == lid) {
+			if (!index) 
+				return tLLog[i];	
+			else
+				return [tLLog[i], i];
+		}	
+	}
+	
+	return false;
+}
+
+function setl (l) { // TODO: use Quicksort algorithm
+	
+	var lid = l.lid;
+	var i = getl( lid, true )[1]
+	tLLog[i] = l;			
+}
+
+function dell ( lid ) {
+
+	var l = getl ( lid );
+	
+	var a = [];
+	
+	for ( var i = 0; i < tLLog.length; i ++ ) {
+	
+		if ( tLLog[i] != l )
+			a.push(tLLog[i] );
+	
+	}
+	
+	tLLog = a;
+	saveAll();
+
+}
+
+
+/* ================================================
+   Timer
+   ================================================ */
+
+var time; 
+
+var isTimerOn = (localStorage.isTimerOn) ? JSON.parse(localStorage.isTimerOn) : false;
+
+var timerStartDate, timerStopDate;
+
+// Every second, we'll do something
+var timer; 
+
+if ( isTimerOn ) {
+	
+	istimerOn = true;
+	timerStartDate = JSON.parse(localStorage.timerStartDate);
+	ct = (new Date())*1;
+	time = Math.floor((ct - timerStartDate)/1000);
+	timerStart(true);
+}
+
+else {
+	
+	timerStartDate = 0;
+	isTimerOn = false;
+	time = 0;
+
+}
+
+
+function sec2hr ( t ) {
+
+	var hr = Math.floor(t / 3600);
+	this.hr = hr;
+	
+	var min = t - (3600 * hr);
+	min = Math.floor(min / 60);
+	this.min = min;
+	
+	var sec = t - (3600 * hr) - (60 * min);
+	this.sec = sec;	
+	
+	return this;
+
+}
+
+function hr2str ( t ) {
+			
+		t.hr += "";
+		if (parseInt(t.hr) < 10 )
+			t.hr = "0" + t.hr;			
+		
+		t.min += "";
+		if (parseInt(t.min) < 10 )
+			t.min = "0" + t.min;			
+
+		t.sec += "";
+		if (parseInt(t.sec) < 10 )
+			t.sec = "0" + t.sec;			
+
+	return t;
+
+}
+
+function sec2date ( t ) {
+
+	var h = new Date(t).toString();
+	
+	var a  = h.split(" ");
+	
+	h = a[0] + " " + a[1] + " " + a[2] + " " + a[3] + " " + a[4];
+	
+	return h;
+}
+
+function date2sec ( d ) {
+
+	// d looks like: 2012-24-12
+		 		
+		if ( d ) {
+		
+			var b = new Date();
+		 	d = d.split("-");
+		
+			b.setYear(d[0]);
+			b.setMonth(d[1] - 1);
+			b.setDate(d[2]);
+			b.setMinutes(0);
+			b.setHours(0);
+			b.setSeconds(0);
+			b.setMilliseconds(0);
+		
+			b *= 1;
+		
+			return b ;
+			
+		}
+		
+		else return 0;
+
+}
+
+function timeTask() {
+	
+	var a = new Date()*1;
+	time = Math.floor((a/1000) - (timerStartDate/1000));
+	if ( isTimerOn ) { //security check, but should always be on
+	
+		var t = sec2hr ( time );
+		t = hr2str ( t );
+		timerLoad ( t.hr, t.min, t.sec );		
+	
+	}
+		
+}
+
+function timerLoad ( hr, min, sec ) {
+
+	$("#time_hr").html(hr);
+	$("#time_min").html(min);
+	$("#time_sec").html(sec);
+
+}
+
+function timerStart ( isFromMemory ) {
+
+	if ( !isTimerOn || isFromMemory ) { 
+	
+		isTimerOn = true;
+		localStorage.isTimerOn = true;
+		
+		if (!isFromMemory) {
+			timerStartDate = (new Date())*1;
+			localStorage.timerStartDate = timerStartDate;
+		}
+	
+		var t = sec2hr ( time );
+		t = hr2str ( t );
+		timerLoad ( t.hr, t.min, t.sec );		
+	
+		$("#time").addClass("flicker");
+		setTimeout("$('#time').removeClass('flicker')", 350 );
+	
+		clearInterval(timer);
+		timer = setInterval ( "timeTask()", 1000 );
+	}
+}
+
+function timerStop () {
+	
+	clearInterval(timer);
+	
+	timerStopDate = (new Date())*1;	
+	localStorage.timerStopDate = timerStopDate;
+		
+	saveTimeItem();
+	
+	time = 0;
+	
+	isTimerOn = false;
+	localStorage.isTimerOn = false;
+		
+}
+
+function timerCancel () {
+	
+	clearInterval(timer);
+	
+	time = 0;
+	
+	isTimerOn = false;
+	localStorage.isTimerOn = false;
+	
+	timerLoad ( "00", "00", "00" );			
+		
+}
+
+function timerStopSet () {
+		
+	var b = hr2str(sec2hr(time));
+	
+	$("#st_hr").val( b.hr );
+	$("#st_min").val( b.min);
+	$("#st_sec").val( b.sec );
+	
+	modalDialog("timerSet");
+
+}
+
+// This whole idea doesn't work if we allow for cross-session timing
+/*function timerPause () { 
+	
+	isTimerOn = false;
+	clearInterval(timer);
+
+}*/
+
+function slbxui() {
+	
+	$("#main_csel").change(function() {
+	
+		loadcv ( this.value*1 );
+	
+	});
+	
+	$("#main_csel").click(function() {
+	
+		loadcv ( this.value*1 );
+	
+	});
+
+	$("#main_psel").change(function() {
+	
+		loadpv ( this.value*1 );
+	
+	});
+	
+	$("#main_psel").click(function() {
+	
+		loadpv ( this.value*1 );
+	
+	});
+
+	$("#main_lsel").change(function() {
+	
+		loadlv ( this.value*1 );
+	
+	});
+	
+	$("#main_lsel").click(function() {
+	
+		loadlv ( this.value*1 );
+	
+	});
+
+	
+	$("input, select","#fs_headers").change(function(){
+	
+		filter_apply();
+	
+	});
+
+	$(".slbx").mouseover(function(){
+	
+		$(this).addClass("over");
+	
+	});
+
+	$(".slbx").mouseout(function(){
+	
+		$(this).removeClass("over");
+	
+	});
+
+	$(".slbx .more").click(function(){
+	
+		$( this.parentElement ).toggleClass("on");
+	
+	});
+
+	$(".slbx .clr").click(function(){
+		
+		var b = $(".slbx.over")[0];
+		var a = $("select",b)[0];	
+		var c = $("input",b)[0];
+		//var d = $(".slbx-drop",b)[0];
+		
+		c.value = "";
+		a.value = null;
+		a[0].selected = "selected";
+		
+		$(a).change();
+		$(c).change();
+		$(b).removeClass("on");
+		
+		$(this).hide();
+		
+	
+	});
+
+	$(".slbx input.srch, .live").keyup(function(){
+	
+		this.blur();
+		this.value = this.value;
+		this.focus();
+		//insertAtCursor(this,"");
+		//$(this).change();
+
+	});
+	
+	$(".live").scroll(function(){ // Dates
+	
+		$(this).change();
+
+	});
+	
+	$(".slbx input.srch").change(function(){
+	
+		var b = $(".slbx.foc")[0];
+		var a = $("select",b)[0];	
+		var c = $(".clr",b)[0];	
+		
+		$(a).attr("title",this.value);
+		
+		$(".ophldr",b).html( slbxOps ( a ) );
+		
+		if ( this.value != "" )	{
+			$(b).addClass("on");
+			$(c).show();			
+		}
+		else {
+			$(b).removeClass("on");	
+			$(c).hide();
+		}
+				
+	});
+
+	$(".slbx input.srch").focus(function(){
+		
+		$(this).closest(".slbx").addClass("foc");
+	
+	});
+
+	$(".slbx input.srch").click(function(){
+				
+		$(this).select();
+	
+	});
+
+	$(".slbx input.srch").blur(function(){
+
+		$(".slbx.over").removeClass("foc");
+	
+	});
+
+}
+	
+// Taken from tps.studyplace.us (Moodle)
+/*function insertAtCursor(myField, myValue) {
+    // IE support
+    if (document.selection) {
+        myField.focus();
+        sel = document.selection.createRange();
+        sel.text = myValue;
+    }
+    // Mozilla/Netscape support
+    else if (myField.selectionStart || myField.selectionStart == '0') {
+        var startPos = myField.selectionStart;
+        var endPos = myField.selectionEnd;
+        myField.value = myField.value.substring(0, startPos)
+            + myValue + myField.value.substring(endPos, myField.value.length);
+    } else {
+        myField.value += myValue;
+    }
+}*/
+	
+$(document).ready(function() {
+
+	configureOptions();
+	
+	$("#online-wait").hide();
+		
+	$("#start").click(function(){
+	
+		timerStart();
+	
+	});
+
+	$("#pause").click(function(){
+	
+		timerPause();
+	
+	});
+
+	$("#done").click(function(){
+	
+		timerStop();
+	
+	});
+	
+	$("body").click(function(){
+	
+		$(".bgrp:not(.over)").removeClass("on");
+		//$(".slbx:not(.over)").removeClass("on");
+	
+	});
+
+	$(".bgrp").mouseover(function(){
+	
+		$(this).addClass("over");
+	
+	});
+
+	$(".bgrp").mouseout(function(){
+	
+		$(this).removeClass("over");
+	
+	});
+
+
+	$(".bgrp .more").click(function(){
+	
+		$( this.parentElement ).toggleClass("on");
+	
+	});
+
+	$(".bgrp .bgrp-drop span").click(function(){
+		
+		$(".bgrp").removeClass("on");
+		var a = $(this).attr("class");
+		eval(a + "()");
+	
+	});
+
+	$("#set-time").click(function(){
+	
+		var hr = $("#st_hr").val( )*1;
+		var min = $("#st_min").val( )*1;
+		var sec = $("#st_sec").val( )*1;
+		
+		var t = (hr*3600) + (min*60) + sec;
+		
+		var t_aug = hr2str(sec2hr(t));
+		
+		modalDialogClose(); 
+		
+		$("#time_hr").html(t_aug.hr);
+		$("#time_min").html(t_aug.min);
+		$("#time_sec").html(t_aug.sec);
+			 	
+	 	time = t;
+	 	
+	 	timerStop();
+	
+	});
+	
+	$("#ops").click( function() {
+	
+		configureOptions();
+	
+		modalDialog("options");
+	
+	});
+
+	$("#save-ops").click( function() {
+	
+	var ou = USER_ID;
+	
+	SHOW_ARCHIVED = !!($("#o_arch").attr( "checked" ));
+	ONLINE = !!($("#o_online").attr( "checked" ));
+	/*USER_ID = $("#o_userid").val();
+	PWD = $("#o_pass").val();*/ /*handled by function $("#save-acct").click below */
+	AUTO_SAVE = !!$("#o_autosave").attr("checked");
+	
+	localStorage.ONLINE = JSON.stringify(ONLINE);
+	localStorage.SHOW_ARCHIVED = JSON.stringify(SHOW_ARCHIVED);
+	localStorage.AUTO_SAVE = JSON.stringify(AUTO_SAVE);
+	localStorage.USER_ID = JSON.stringify(USER_ID);
+
+	if ( ONLINE && ou != USER_ID ) {
+			
+		if ( DIRTY) saveAll ( true, ou ); // Will refresh view
+		else fetchOnlineData();
+		
+	}
+	
+	uiLoadAll();
+		
+	modalDialogClose();
+
+	});
+
+	$("#online-save").click( function() {
+		
+	saveAll ( true );
+		
+	});
+	
+	$("#save-acct").click( function() {
+	
+	ONLINE = true;
+	localStorage.ONLINE = JSON.stringify(ONLINE);
+
+	var ou = USER_ID;
+	var op = PWD;
+		
+	var u = $("#o_userid").val();
+	var p = $("#o_pass").val();
+	var n = $("#o_np").val();
+	
+	localStorage.u = u;
+	localStorage.p = p;
+	localStorage.n = n;
+
+	localStorage.ou = ou;
+	localStorage.op = op;
+	localStorage.on = op;
+	
+	WA.install("#chkbullets", 300);
+
+	//registerUser
+	
+//	if ( ou != u ) {
+			
+		registerUser ( u, p, n, function() { 
+			
+			//This won't happen unless the registration is safe
+			USER_ID = localStorage.u;
+			localStorage.USER_ID = JSON.stringify(USER_ID);
+
+			PWD = localStorage.p;
+			localStorage.OWD = JSON.stringify(PWD);
+			
+			if ( DIRTY) saveAll ( true, localStorage.ou, localStorage.op ); // Will refresh view
+			else fetchOnlineData2();
+			
+		});		
+		
+/*	}
+	
+	else if ( op != p ) {
+	
+		registerUser ( USER_ID, PWD, p, function() { 
+			
+				fetchOnlineData2();
+			
+		});		
+	
+	}*/
+		
+	});
+
+	
+
+});
+
+/* ================================================
+   *General* UI
+   ================================================ */
+
+function clear() {
+
+	$("#time_psel").val("");
+	$("#time_csel").val("");
+	$("#time_lsel").val("");
+	$("#comments").val("");
+
+}
+
+function filter_clear() {
+
+	$("#filter_psel").val("");
+	$("#filter_csel").val("");
+	$("#filter_lsel").val("");
+	$("#filter_dmin").val("");
+	$("#filter_dmax").val("");
+
+}
+
+function uiLoadAll() {
+	
+	var c = $(".csel").toArray();
+	
+	for ( var i=0; i<c.length; i++ ) {
+	
+		var cid = c[i].value;
+		cid = ( cid == null || cid == "" ) ? -1 : cid*1;
+
+		populateCompanyList( c[i], cid );
+		
+	}
+
+	loadcv( cid );
+
+	var p = $(".psel").toArray();
+
+	for ( var i=0; i<p.length; i++ ) {
+	
+		var pid = p[i].value;
+		pid = ( pid == null || pid == "" ) ? -1 : pid*1;
+
+		populateProjectList( p[i], pid );
+		
+	}
+	
+	loadpv( pid );
+
+	var l = $(".lsel").toArray();
+
+	for ( var i=0; i<l.length; i++ ) {
+	
+		var lid = l[i].value;
+		lid = ( lid == null || lid == "" ) ? -1 : lid*1;
+
+		populateClientList( l[i], lid );
+		
+	}
+	
+	loadlv( lid );
+	
+	list2slbx("select.srch");
+	
+	filter_apply();
+	
+	if ( DIRTY ) $("#online-save").fadeIn();
+	else $("#online-save").hide();
+	
+
+}
+
+/* ================================================
+   Timelog
+   ================================================ */
+
+function printTimeLog ( cid, pid, lid, min, max ) {
+		
+	var n, s=0, l, k = 0, ihtml = "";
+	
+	for ( var i=0; i< tILog.length; i++ ) {
+		 
+		n = tILog[i];
+		
+		var b1 = ((n.cid == cid) || (cid==null) || (cid==-1));
+		var b2 = ((n.pid == pid) || (pid==null) || (pid==-1) );
+		var b3 = ((n.lid == lid) || (lid==null) || (lid==-1) );
+		var b4 = ((n.starts >= ( min ) ) || (min == "") );
+		var b5 = ((n.ends < (max + 86400000) ) || (max == "") );
+		var b6 = (SHOW_ARCHIVED || !n.arch );
+				
+		if (  b1 && b2 && b3 && b4 && b5 && b6) {
+			
+			k++;
+			l = printTimeEntry( tILog[i], k );		
+			ihtml += l[0];
+			s += l[1];
+		}
+	}
+	
+	var html = "<table bordercollapse='0px' ><tr><td class='colid' >#</td><td class='colclient' >Client</td><td class='colproj' >Project";
+	html += "</td><td class='colcomp' >Company</td><td class='collen' >Length";
+	html += "</td><td class='colrange' >Start</td><td>End</td><td class='colops' ></td></tr>";
+	html += ihtml;	
+	html += "</table>"
+		
+	return [html,s,k];
+
+}
+
+function printTimeEntry ( t, k ) {
+		
+	var index = (k) ? k : tILog.indexOf ( t );
+				
+	var c = getc(t.cid);
+	var p = getp(t.pid);
+	var l = getl(t.lid);
+		
+	c = (!!c) ? c : {name:"-"};
+	p = (!!p) ? p : {name:"-"};
+	l = (!!l) ? l : {name:"-"};
+	
+	var timelen = hr2str(sec2hr(t.length));
+	timelen = timelen.hr + ":" + timelen.min + ":" + timelen.sec;
+	
+	var date1 = sec2date( t.starts);
+	var date2 = sec2date( t.ends );
+	
+	var drange = date1 + " - " + date2;
+	
+	var archcls = ( t.arch ) ? " arch ": "";
+
+	var html = "<tr class='" + archcls + "' >";
+			
+	html += "<td class='colid' >" + index + ".</td><td class='colclient' >" + l.name + "</td><td class='colproj' >" + p.name;
+	html += "</td><td class='colcomp' >" + c.name + "</td><td class='collen' >" + timelen;
+	html += "</td><td class='colstart' >" + date1 + "</td><td class='colend' >" + date2 + "</td>";
+	html += "<td class='colops' ><div class='close' onclick='delt(" + t.tid + ");filter_apply();' >x</div>";
+	html += "<div class='edit' onclick='et(" + t.tid + ")' ><img src='pen.png' /></div></td></tr>";
+	
+	return [html, t.length];
+	
+}
+
+function et ( tid ) {
+	
+	var t = gett( tid );
+	
+	var b = sec2date(t.starts).split(" ");
+	var btm = b[4].split(":");
+	var bmnth = new Date(t.starts).getMonth()+1;
+	
+	var e = sec2date(t.ends).split(" ");
+	var etm = e[4].split(":");
+	var emnth = new Date(t.ends).getMonth()+1;
+	
+	$("#et_bhr").val( btm[0] );
+	$("#et_bmin").val( btm[1] );
+	$("#et_bsec").val( btm[2] );
+	$("#et_beg").val( b[3] + "-" + bmnth + "-" + b[2] );
+	$("#et_ehr").val( etm[0] );
+	$("#et_emin").val( etm[1] );
+	$("#et_esec").val( etm[2] );
+	$("#et_end").val( e[3] + "-" + emnth + "-" + e[2] );
+	$("#et_cid").val(t.cid);
+	$("#et_lid").val(t.lid);
+	$("#et_pid").val(t.pid);
+	$("#et_com").val(t.comments);
+	$("#et_tid").val(t.tid);
+
+	$("#et_arch").attr("checked", t.arch);
+		
+	modalDialog("edittime");
+
+
+}
+
+function filter_apply ( spec, c, p, l, n , m ) {
+
+	var log;
+	
+	n = date2sec(n);
+	m = date2sec(m);
+	
+	if ( !spec )
+		log = printTimeLog ( $("#filter_csel").val()*1, 
+		$("#filter_psel").val()*1, 
+		$("#filter_lsel").val()*1, 
+		date2sec(
+			$("#filter_dmin").val() ), 
+		date2sec(
+			$("#filter_dmax").val() ) ) ;
+	else
+		log = printTimeLog ( c, 
+		p, 
+		l, 
+		n, 
+		m);
+	
+	
+	var t = sec2hr(log[1]);
+	t =  hr2str(t);
+	
+	var hr = t.hr;
+	var min = t.min;
+	var sec = t.sec;
+	
+	var header = "<big>" + log[2] + " matches | Total time: " + hr + ":" + min + ":" + sec + "</big>";
+	var table = log[0];
+	
+	$("#timelog").html(header + table);
+	
+
+}
+
+function filter_print ( ) {
+	
+	var cid = $("#filter_csel").val()*1, 
+		pid = $("#filter_psel").val()*1, 
+		lid = $("#filter_lsel").val()*1, 
+		d1 = $("#filter_dmin").val(), 
+		d2 = $("#filter_dmax").val();
+	
+	if ( cid != -1 ) var c = getc(cid).name;
+	else var c = "All companies";
+	if ( pid != -1 ) var p = getp(pid).name;
+	else var p = "All projects";
+	if ( lid != -1 ) var l = getl(lid).name;
+	else var l = "All clients";
+	if ( d1 == "" ) d1 = "-";
+	if ( d2 == "" ) d2 = "-";
+	
+	$("#fpc").html(c);
+	$("#fpp").html(p);
+	$("#fpl").html(l);
+	$("#fpd1").html(d1);
+	$("#fpd2").html(d2);
+	
+	
+	var a = $("#fpc").html();
+	
+	$("#fp_headers").show();
+		
+	window.print();	
+
+	$("#fp_headers").hide();
+
+}
+
+function timeLog_c() {
+
+		var c = curc().cid; 
+						
+		filter_apply ( true, c, -1, -1, "", "" );
+		
+		filter_clear();
+
+		$("#filter_csel").val(c); 
+				
+		_tabs.Set("#tabs", "5");
+
+}
+
+function timeLog_p() {
+
+		var p = curp().pid; 
+				
+		filter_apply ( true, -1, p, -1, "", "" );
+		
+		filter_clear();
+
+		$("#filter_psel").val(p); 
+				
+		_tabs.Set("#tabs", "5");
+
+
+}
+
+function timeLog_l() {
+
+		var l = curl().lid; 
+				
+		filter_apply ( true, -1, -1, l, "", "" );
+		
+		filter_clear();
+
+		$("#filter_lsel").val(l); 
+				
+		_tabs.Set("#tabs", "5");
+
+}
+
+$(document).ready(function(){
+
+	$("#edit-time").click(function(){
+	
+		var btm = [$("#et_bhr").val()*1,
+			$("#et_bmin").val()*1,
+			$("#et_bsec").val()*1];
+
+		var etm = [$("#et_ehr").val()*1,
+			$("#et_emin").val()*1,
+			$("#et_esec").val()*1];
+		
+		var b = date2sec($("#et_beg").val());
+		b += (btm[0]*3600000) + (btm[1]*60000) + (btm[2]*1000);
+		
+		var e = date2sec($("#et_end").val());
+		e += (etm[0]*3600000) + (etm[1]*60000) + (etm[2]*1000);
+		
+		var cid = $("#et_cid").val()*1;	
+		
+		var lid = $("#et_lid").val()*1;
+		var pid = $("#et_pid").val()*1;
+		var tid = $("#et_tid").val()*1;
+		
+		var com = $("#et_com").val();
+
+		var arch = $("#et_arch").attr("checked");
+		
+		var ti = new TimeItem( b, e, (e - b)/1000, cid, pid, lid, com, arch );
+				
+		ti.tid = tid;
+				
+		sett( ti );
+		
+		saveAll();
+
+		modalDialogClose();
+			
+	});
+	
+	$("input, select","#fs_headers").change(function(){
+	
+		filter_apply();
+	
+	});
+	
+});
+
+/* ================================================
+   Companies
+   ================================================ */
+
+function curc () {
+
+	return getc ( $("#main_csel").val()*1 );
+
+}
+
+function newc () {
+	
+	$("#cname").val("");
+	modalDialog("company");
+
+}
+
+function savec () {
+
+	var name = $("#cname").val();
+	
+	var c = new Company ( name, false );
+	
+	tCLog.push ( c );
+	
+	saveAll();
+	
+}
+
+function savecv () {
+
+	var name = $("#cview_name").val();
+	
+	var arch = 	$("#cview_arch").attr("checked");
+	
+	if ( !name ) return( alert ( "No company selected." ) );
+	
+	var c = new Company ( name, arch );
+	
+	c.cid = $("#main_csel").val()*1;
+	
+	setc ( c );
+	
+	saveAll();
+	
+}
+
+function populateCompanyList( listID, sel ) {
+	
+	var ds = (sel == null)? " selected='selected' " : "";
+	var html = "<option value='-1'" + ds + " >Company</option>";
+	var s = "";
+	
+	for ( var i=0; i<tCLog.length; i++ ) {
+	
+		s = (tCLog[i].cid == sel && (sel >= 0)) ? " selected " : " ";
+		
+		if ( SHOW_ARCHIVED || !tCLog[i].arch )
+			html += "<option" + s + "value='" + tCLog[i].cid + "' >" + tCLog[i].name + "</option>";
+		
+	}
+	
+	$(listID).html(html);
+
+}
+
+function loadcv() {
+
+	var cid = $("#main_csel").val()*1;
+		
+	var c = getc( cid );
+	
+	$("#cview_name").val(c.name);
+	$("#cview_arch").attr("checked", c.arch);
+	populateProjectList("#cview_plist", null, cid);
+	populateClientList("#cview_llist", null, cid);
+	
+	if (cid >= 0)
+		$("#cinfo").show();
+	else $("#cinfo").hide();
+	
+	// Populate Time Log 
+
+}
+
+$(document).ready(function() {
+
+	uiLoadAll();
+	
+	$("#main_csel").change(function() {
+	
+		loadcv ( this.value*1 );
+	
+	});
+	
+	$("#main_csel").click(function() {
+	
+		loadcv ( this.value*1 );
+	
+	});
+		
+});
+
+/* ================================================
+   Projects
+   ================================================ */
+
+function curp () {
+
+	return getp ( $("#main_psel").val()*1 );
+
+}
+
+function newp () {
+	
+	$("#pname").val("");
+	$("#p_cid").val("");
+	$("#p_com").val("");
+	
+	populateCompanyList("#p_cid");
+	populateClientList("#p_lid");
+	
+	modalDialog("project");
+
+}
+
+function savep () {
+
+	var name = $("#pname").val();
+	var cid = $("#p_cid").val();
+	var lid = $("#p_lid").val();
+	var com = $("#p_com").val();
+	var arch = $("#pview_arch").attr("checked");
+	
+	var p = new Project ( name, cid, lid, com, arch );
+	
+	tPLog.push ( p );
+	
+	saveAll();
+	
+}
+
+function savepv () {
+
+	var name = $("#pview_name").val();
+	
+	if ( !name ) return( alert ( "No project selected." ) );
+	
+	var cid = $("#pview_com").val();
+	var lid = $("#pview_cli").val();
+	var com = $("#pview_comments").val();
+	var arch = $("#pview_arch").attr("checked");
+	
+	var p = new Project ( name, cid, lid, com, arch );
+	
+	p.pid = $("#main_psel").val()*1;
+	
+	setp ( p );
+	
+	saveAll();
+	
+}
+
+function populateProjectList( listID, sel, cid, lid ) {
+	
+	var ds = (sel == null)? " selected='selected' " : "";
+	var html = "<option value='-1'" + ds + " >Project</option>";
+	var s, d;
+	for ( var i=0; i<tPLog.length; i++ ) {
+	
+		s = (tPLog[i].pid == sel && (sel >= 0) ) ? " selected " : " ";
+		d = ( (tPLog[i].cid == cid || !(cid >= 0) ) && (tPLog[i].lid == lid || !(lid >= 0) ) ) ? true : false;
+		
+		if ( ( SHOW_ARCHIVED || !tPLog[i].arch ) && (d) ) 
+			html += "<option" + s + "value='" + tPLog[i].pid + "' >" + tPLog[i].name + "</option>";
+		
+	}
+	
+	$(listID).html(html);
+
+}
+
+function loadpv() {
+
+	var pid = $("#main_psel").val()*1;
+		
+	var p = getp( pid );
+	
+	$("#pview_name").val(p.name);
+	$("#pview_comments").val(p.comments);
+	$("#pview_arch").attr("checked",p.arch);
+	populateCompanyList("#pview_com", p.cid);
+	populateClientList("#pview_cli", p.lid);
+	
+	// Populate Time Log
+	
+	if (pid >= 0)
+		$("#pinfo").show();
+	else $("#pinfo").hide();
+
+}
+
+$(document).ready(function() {
+
+	//uiLoadAll(); // Already happening above
+	
+	$("#main_psel" ).change(function() {
+	
+		loadpv ( this.value*1 );
+	
+	});
+
+	$("#main_psel" ).click(function() {
+	
+		loadpv ( this.value*1 );
+	
+	});
+	
+});
+
+/* ================================================
+   Clients
+   ================================================ */
+
+function curl () {
+
+	return getl ( $("#main_lsel").val()*1 );
+
+}
+
+function newl () {
+	
+	$("#lname").val("");
+
+	modalDialog("client");
+
+}
+
+function savel () {
+
+	var name = $("#lname").val();
+	
+	var l = new Client ( name );
+	
+	tLLog.push ( l );
+	
+	saveAll();
+	
+}
+
+function savelv () {
+
+	var name = $("#lview_name").val();
+	var arch = $("#lview_arch").attr("checked");
+	
+	if ( !name ) return( alert ( "No client selected." ) );
+	
+	var l = new Client ( name, arch );
+	
+	l.lid = $("#main_lsel").val()*1;
+	
+	setl ( l );
+	
+	saveAll();
+	
+}
+
+function populateClientList( listID, sel, pid, cid ) {
+	
+	var ds = (sel == null)? " selected='selected' " : "";
+	var html = "<option value='-1'" + ds + " >Client</option>";
+	var s, d;
+	for ( var i=0; i<tLLog.length; i++ ) {
+	
+		s = (tLLog[i].lid == sel && (sel >= 0) ) ? " selected " : " ";
+		d = ( (tLLog[i].cid == cid || !(cid >= 0) ) && (tLLog[i].pid == pid || !(pid >= 0) ) ) ? true : false;
+	
+		if ( (d) && (SHOW_ARCHIVED || !tLLog[i].arch ) )
+			html += "<option" + s + "value='" + tLLog[i].lid + "' >" + tLLog[i].name + "</option>";
+		
+	}
+	
+	$(listID).html(html);
+ 
+}
+
+function loadlv() {
+
+	var lid = $("#main_lsel").val()*1;
+		
+	var l = getl( lid );
+		
+	$("#lview_name").val(l.name);
+	$("#lview_arch").attr("checked",l.arch);
+	populateProjectList("#lview_plist", null, l.pid);
+	populateCompanyList("#lview_clist", null, l.cid);
+	
+	// Populate Time Log
+	
+	if (l.lid >= 0)
+		$("#linfo").show();
+	else $("#linfo").hide();
+
+}
+
+$(document).ready(function() {
+	
+	$("#main_lsel").change(function() {
+	
+		loadlv ( this.value*1 );
+			
+		//alert("Yes");	
+			
+	});
+	
+	$("#main_lsel").click(function() {
+	
+		loadlv ( this.value*1 );
+	
+	});
+		
+});
+
+/* ================================================
+   Modal Dialogs
+   ================================================ */
+
+function modalDialog ( name ) {
+
+	$("#modalbg").show();
+	$("#" + name).fadeIn();
+
+}
+
+function modalDialogSwitch ( name ) {
+
+	$(".modalbox").hide();
+	$("#" + name).fadeIn();
+
+}
+
+function modalDialogClose ( name ) {
+	
+	$("#modalbg").fadeOut();
+	$(".modalbox").hide();
+
+}
+
+$(document).ready(function(){
+
+	$("#newc").click(function(){
+	
+		newc();
+	
+	});
+
+	$("#newp").click(function(){
+	
+		newp();
+	
+	});
+
+	$("#newl").click(function(){
+	
+		newl();
+	
+	});
+	
+	$(".modalclose").click(function(){
+	
+		modalDialogClose();
+	
+	});
+
+	$(".modalcancel").click(function(){
+	
+		modalDialogClose();
+	
+	});
+
+	$("#make-company").click(function(){
+		
+		modalDialogClose();
+		savec();
+	
+	});
+
+	$("#make-project").click(function(){
+		
+		modalDialogClose();
+		savep();
+	
+	});
+
+	$("#make-client").click(function(){
+		
+		modalDialogClose();
+		savel();
+	
+	});
+
+	$("#make-time").click(function(){
+		
+		modalDialogClose();
+		
+		var t = (($("#t_hr").val()*1) * 3600) + (($("#t_min").val()*1) * 60) + (($("#t_sec").val()*1)) ;
+		
+		var b = date2sec($("#t_beg").val());
+		
+		var e = b + (t*1000);
+		
+		var lid = $("#t_lid").val()*1;
+		var cid = $("#t_cid").val()*1;
+		var pid = $("#t_pid").val()*1;
+
+		var com = $("#t_com").val();
+		
+		var ti = new TimeItem ( b, e, t, cid, pid, lid, com );
+	
+		tILog.push(ti);
+	
+	 	saveAll();
+		
+	});
+
+});
+
+
+/* ================================================
+   Tabs
+   ================================================ */
+   
+   var CUR_TAB  = (localStorage.CUR_TAB) ? localStorage.CUR_TAB : "1";
+	localStorage.CUR_TAB = CUR_TAB;
+   
+   var _tabs = {
+
+	referenceError : "The tab could not be set because it does not exist or because it was not a valid reference.",
+
+	blankClassError : "The tab could not be set because there was a problem with the ID.",
+	
+	defaultHideSpeed : 100,
+	
+	defaultShowSpeed : 100,
+
+	data : [],
+	speedData : [],
+	tabGroupData: [],
+	
+	class2Id : function ( c ) {
+	
+		if (typeof c == "object" && "className" in c) 
+			c = c.className;
+		
+		if (typeof c != "string" || !c.indexOf("tab-")) 
+			return console.error(this.blankClassError);
+			
+		var l = c.indexOf("tab-");
+		var n = c.substr(l + "tab-".length, 1);
+		
+		return n;
+	
+	},
+	
+	Set : function (tabGroup, tabNum, hideSpeed, showSpeed) {
+				
+		// Validate tabGroup (has to be something jQuery can find)
+		
+		if ( $(tabGroup).length <= 0) return console.error(this.referenceError);
+		
+		// Validating TabNum is a little more complicated, because it takes an actual DOM object or the id
+		// number of the tab. ***It doesn't take Sizzle strings.***
+		// The ONE-DIGIT ID depends on the actual HTML setting. It could be "A" or "6", etc.
+	
+		if (typeof tabNum === "object" && "innerHTML" in tabNum) {
+			CUR_TAB = this.class2Id(tabNum.className);
+			localStorage.CUR_TAB = CUR_TAB;
+		}
+		else if (typeof tabNum === "string" && !!(a = $(".tab-top .tab.tab-" + tabNum, tabGroup).toArray()[0]) ) {
+			CUR_TAB = tabNum;
+			localStorage.CUR_TAB = CUR_TAB;			
+			tabNum = a;			
+		}
+		else return console.error(this.referenceError);
+		
+		// Convert hideSpeed and showSpeed, if possible.
+		
+		hideSpeed *= 1;
+		showSpeed *= 1;
+				
+		if ( !(hideSpeed>=0 ) ) hideSpeed = this.defaultHideSpeed;
+		if ( !(showSpeed>=0) ) showSpeed = this.defaultShowSpeed;
+		
+		// Callback functions need this data
+		this.speedData.push(showSpeed);		
+		this.data.push(tabNum);
+		this.tabGroupData.push(tabGroup);
+								
+		$(".tab-content .tab", tabGroup).fadeOut(hideSpeed, function(){
+			
+			// Fetch data
+			var posEl = _tabs.data.length - 1, posSpd = _tabs.speedData.length - 1
+				posTG = _tabs.tabGroupData.length - 1;
+			var el = _tabs.data[posEl];
+			
+			var tnum = _tabs.class2Id(el), showSpeed = _tabs.speedData[posSpd],
+				g = $(_tabs.tabGroupData[posTG]).toArray()[0];
+			
+			$(".tab-content .tab-"+tnum, g).fadeIn(showSpeed, function(){
+								
+				var pos = _tabs.data.length - 1;
+				var obj = _tabs.data[pos];
+								
+				$(".tabs.on .tab-top .tab").removeClass("on");
+				$(obj).addClass("on");
+														
+			});	
+		
+		});
+	}
+
+}
+
+   $(document).ready(function(){
+   
+   	_tabs.Set("#tabs",CUR_TAB);
+   
+   	$(".tabs .tab-content .tab").hide();
+	
+	//$(".tabs .tab-content .tab:first").show();
+	//$(".tabs .tab-top .tab:first").addClass("on");
+		
+	$(".tabs").mouseover(function() {
+	
+		$(this).addClass("on");
+	
+	});
+	
+	$(".tabs").mouseout(function() {
+	
+		$(this).removeClass("on");
+	
+	});
+		
+	$(".tabs .tab-top .tab").click(function(){
+		
+		_tabs.Set ( ".tabs.on", this, 100, 0);
+
+	});
+
+   });
+
+/* ================================================
+   Search-listboxes (slbx)
+   ================================================ */
+
+var slbxS = [];
+
+function slbx ( sid, dataArr ) {
+
+	this.sid = sid;
+	this.dataArr = dataArr;
+
+}
+
+function oldslbxid ( list ) {
+
+	var c = list.className;
+	
+	c = c.split ("oldslbx-");
+	c = c[1].split(" ")[0];
+	
+	return c;
+
+}
+
+function getslbx ( sid, index ) {
+
+	for ( var i=0; i<slbxS.length; i++ ) {
+		if (slbxS[i].sid == sid) {
+			if (!index) 
+				return slbxS[i];	
+			else
+				return [slbxS[i], i];
+		}	
+	}
+	
+	return false;
+}
+
+function getld ( l, index ) {
+
+	for ( var i=0; i<l.length; i++ )
+		if (l[i].value == index)
+			return l[i].innerHTML;	
+	
+	return "";
+}
+
+function setslbx ( slbx ) { // TODO: use Quicksort algorithm
+	
+	var sid = slbx.sid;
+	var i = getslbx( sid, true )[1]
+	slbxS[i] = slbx;			
+}
+
+function slbxclk ( obj ) {
+		
+	var s = $(".slbx.on").toArray()[0];
+		
+	var a = $(obj).html();
+	var b = $(obj).attr("title");
+	
+	$("input",s).val(a);
+	$("select",s).val(b);
+	$("select",s).change();
+			
+	$(s).removeClass("on");
+
+}
+
+function list2slbx ( szl ) {
+
+var objArr = $( szl ).toArray();
+
+for ( var i=0; i<objArr.length; i++ ) {
+	
+	var n = objArr[i];
+	var dataArr = [];
+
+	var html = "<div class='ophldr' >" + slbxOps( n ) + "</div>";
+		
+	$(n).one("change", function(){
+			
+		list2slbx( this );
+	
+	});
+	
+	var old = $(n).hasClass("oldslbx");
+	
+	if ( !old ) {
+		
+		var m = (Math.floor( Math.random()*1000000000 ));
+		$(n).addClass("oldslbx").addClass("oldslbx-" + m);
+		
+		var s = new slbx ( "slbx-" + m, dataArr );
+		
+		slbxS.push(s);
+				
+	}
+	else {
+	
+		var m = "slbx-" + oldslbxid ( n );
+		var s = new slbx ( m, dataArr );
+		
+		setslbx ( s );
+		
+		m = m.split("-")[1];
+	
+	}
+	
+	$(n).hide();
+	var selectHTML = $(n).toArray()[0].outerHTML;
+
+	var htmlout = '<div id="slbx-' + m + '" class="slbx" >\
+								<input type="text" class="srch" />\
+								<button class="clr" >x</button>\
+								<button class="more" >\
+									<span>&nbsp;</span><img src="downarr.png" />\
+								</button>\
+								<span class="slbx-drop" >' + html + selectHTML +
+								'</span>\
+							</div> ';
+		
+	if ( old ) {
+		var a = $("#slbx-" + oldslbxid(n) );
+		a = a.toArray()[0];
+		a.outerHTML = htmlout;
+		
+	}
+	else $(".oldslbx-" + m).toArray()[0].outerHTML = htmlout;
+	
+	$("#slbx-" + m + " input").val( getld(n, n.value ) );
+
+}
+
+slbxui();
+
+}
+
+function slbxOps ( szl ) {
+	
+	var n = $(szl).toArray()[0];
+	
+	var ops = n.children;
+	
+	var dataArr = [];
+	
+	var srch = n.title.toLowerCase();
+	var isSrch = true;
+	
+	var html = "";
+	
+	for ( var j=0; j<ops.length; j++ ) {
+	
+		var op = ops[j];
+		op = [ op.value, op.className, op.innerHTML ];
+		dataArr.push(op);
+		
+		var s = ($(n).val() == op[0]) ? " s " : "";
+		
+		var d = ( (!isSrch ) || (op[2].toLowerCase().contains( srch ) ) || (srch == "")  ) ? "" : " h ";
+		
+		//alert( $(n).val() );
+		
+		var oph = "<span onclick='slbxclk(this)' title='" + op[0] + "' class='" + d + s + op[1] + "' >" + op[2] + "</span>";
+		
+		html += oph;
+	
+	}
+		
+	return html;
+
+}
+
+function slbxMatch ( slbxid, item, srch ) {
+
+	srch = srch.toLowerCase();
+	var d = getslbx ( slbxid ).dataArr;
+	var a = [];
+ 
+ 	for ( var i=0; i<d.length; i++ ) 
+ 		if ( d[i][2].toLowerCase().contains(srch) || d[i][2] == ""  )
+ 			a.push(d[i]);
+ 	
+ 	return a;
+
+}
+
+/* ================================================
+   Wait animation
+   ================================================ */
+   
+   var WA = {
+   	
+   	defaultBullets: 3,
+   	defaultSpeed: 700,
+   	
+   	timers: [],
+   	
+   	install: function ( szl, spd, bullets ) {
+   		
+   		if ( !szl ) return false;
+   		if ( !spd ) var spd = this.defaultSpeed;
+   		if ( !bullets ) var bullets = this.defaultBullets;
+   		
+   		var id = "WA-" + Math.floor(Math.random()*1000000000);
+   		
+   		var html = "<div class='WA-wrapper' id = '" + id + "' >";
+   		
+   		for ( var i=0; i<bullets; i++ )
+   			html += "<span class='WA-bullet' ></span>";
+   		
+   		html += "</div>";
+   		
+   		$( szl ).html( html );
+   		   		
+   		this.setTimer( id, "WA.go('" + id + "')", spd );
+   		
+   },
+	
+   	uninstall: function ( szl ) {
+   		
+   		if ( !szl ) return false;
+   		
+   		var id = $( szl ).attr("id");
+   		$( ".WA-wrapper", szl ).remove();
+   		   		
+   		this.killTimer( id );
+   		
+   },
+	
+	go: function( id ) {
+	
+		var WA_item = $("#" + id)[0];
+		
+		var WA_bullets = $(".WA-bullet", WA_item).toArray();
+		
+		var onID = -1;
+		
+		for ( var i=0; i<WA_bullets.length; i++ ) {		
+			if ( $(WA_bullets[i]).hasClass("on") ) {		
+				onID = i;
+				break;						
+			}			
+		}
+		
+		$(WA_bullets).removeClass("on");
+		
+		$( WA_bullets[ (onID + 1)%WA_bullets.length ] ).addClass("on");
+		
+		
+	
+	},
+	
+	setTimer: function ( id, func, wait ) {
+		
+		for ( var i=0; i<this.timers.length; i++ ) {
+			if ( this.timers[i].id == id ) {
+				this.timers[i].handler = setInterval( func, wait );
+				return;
+			}
+		}
+				
+			this.timers.push( { "id":id, "handler":setInterval( func, wait ) } );	
+	
+	},
+	
+	killTimer: function ( id ) {
+	
+		for ( var i=0; i<this.timers.length; i++ )
+			if ( this.timers[i].id == id )
+				return clearInterval( this.timers[i].handler );
+				
+		else return false;
+	
+	}
+	
+	
+}
+	
+</script>
+	
+<style type="text/css" >
+
+
+body, button {
+
+font-size:10pt;
+font-family:arial;
+background:#fafafa;
+
+}
+
+h1 {
+
+display: block;
+font-family: arial;
+font-size: 27px;
+font-weight: bold;
+
+}
+
+table {
+
+border-spacing:0px;
+border:0px solid black;
+
+}
+
+#time_table {
+
+width:100%;
+font-size:10pt;
+
+}
+
+input.inv {
+
+outline:2px solid #800;
+
+}
+
+#wrongpassword {
+
+display:none;
+color:#800;
+padding:5px;
+font-weight:bold;
+
+}
+#time_table td {
+
+vertical-align:top;
+
+}
+
+#page-wrap {
+
+width:750px;
+margin-left:auto;
+margin-right:auto;
+margin-bottom:30px;
+box-shadow:2px 2px 2px #eee inset;
+-moz-box-shadow:1px 1px 1px #eee inset;
+-webkit-box-shadow:1px 1px 1px #eee inset;
+border:1px solid #dddddd;
+padding:15px;
+background:#fefefe;
+}
+
+#tabhead {
+
+background:transparent;
+width:100%;
+border-bottom:4px solid #ddd;
+
+
+}
+
+#bot_panel {
+
+position:fixed;
+left:0px;
+bottom:0px;
+padding:5px;
+background:#eee;
+width:100%;
+/*opacity:0.5;
+filter:Alpha(opacity=0.5);*/
+box-shadow:2px 2px 2px #ccc;
+-moz-box-shadow:2px 2px 2px #ccc;
+-webkit-box-shadow:2px -2px 2px #ccc;
+
+}
+
+#bot_panel .inner {
+
+display:block;
+margin-left:auto;
+margin-right:auto;
+width:750px;
+
+}
+
+#bot_panel .inner  button {
+
+float:right;
+
+}
+
+#bot_panel span {
+
+font-style:italic;
+color:black;
+display:block;
+width:300px;
+text-align:center;
+margin-left:auto;
+margin-right:auto;
+margin-bottom:-50px;
+position:relative;
+bottom:-13px;
+
+}
+
+#online-save {
+
+float:left;
+max-width:200px;
+cursor:pointer;
+padding:8px;
+margin-bottom:8px;
+display:block;
+color:white;
+font-size:140%;
+opacity:0.6;
+background: #eeeeee; /* Old browsers */
+height:25px;
+line-height:25px;
+/*border-right:1px solid #cccccc;
+border-left:1px solid #ffffff;*/
+box-shadow:2px 2px 2px #ddd;
+-moz-box-shadow:2px 2px 2px #ddd;
+-webkit-box-shadow:2px 2px 2px #ddd;
+background: #00a000; /* Old browsers */
+background: -moz-linear-gradient(top, #00a000 0%, #005400 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#00a000), color-stop(100%,#005400)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #00a000 0%,#005400 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #00a000 0%,#005400 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(top, #00a000 0%,#005400 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#00a000', endColorstr='#005400',GradientType=0 ); /* IE6-9 */
+background: linear-gradient(top, #00a000 0%,#005400 100%); /* W3C */
+border-radius:5px; 
+-moz-border-radius:5px; 
+-webkit-border-radius:5px; 
+position:relative;
+top:-3px;
+float:right;
+box-shadow:none;
+-webkit-box-shadow:none;
+-moz-box-shadow:none;
+border:1px solid green;
+
+}
+
+#online-reload {
+
+float:left;
+max-width:200px;
+cursor:pointer;
+padding:8px;
+margin-bottom:8px;
+display:block;
+color:white;
+font-size:140%;
+opacity:0.6;
+background: #eeeeee; /* Old browsers */
+height:25px;
+line-height:25px;
+/*border-right:1px solid #cccccc;
+border-left:1px solid #ffffff;*/
+box-shadow:2px 2px 2px #ddd;
+-moz-box-shadow:2px 2px 2px #ddd;
+-webkit-box-shadow:2px 2px 2px #ddd;
+background: #0000c0; /* Old browsers */
+background: -moz-linear-gradient(top, #0000c0 0%, #000080 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#0000c0), color-stop(100%,#000080)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #0000c0 0%,#000080 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #0000c0 0%,#000080 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(top, #0000c0 0%,#000080 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#0000c0', endColorstr='#000080',GradientType=0 ); /* IE6-9 */
+background: linear-gradient(top, #0000c0 0%,#000080 100%); /* W3C */
+border-radius:5px; 
+-moz-border-radius:5px; 
+-webkit-border-radius:5px; 
+position:relative;
+top:-3px;
+float:right;
+box-shadow:none;
+-webkit-box-shadow:none;
+-moz-box-shadow:none;
+border:1px solid blue;
+
+}
+
+#online-save:hover, #online-reload:hover {
+
+opacity:0.7;
+filter:Alpha(opacity=0.7);
+
+}
+
+#online-save:active, #online-reload:active {
+
+box-shadow:3px 3px 3px rgba(0,0,0,0.5) inset;
+-moz-box-shadow:3px 3px 3px rgba(0,0,0,0.5)  inset;
+-webkit-box-shadow:3px 3px 3px rgba(0,0,0,0.5)  inset;
+
+}
+
+img.logo {
+
+margin-bottom:-15px;
+float:left !important;
+
+}
+
+.print {
+
+display:none;
+
+}
+
+.print .logo {
+
+position:relative;
+bottom:-15px;
+margin-right:40px;
+
+}
+
+input[type=text],input[type=date], textarea, select {
+
+padding:5px;
+font-size:12px;
+border-radius:1px;
+-moz-border-radius:1px;
+-webkit-border-radius:1px;
+box-shadow:1px 1px 1px #eee inset;
+-moz-box-shadow:1px 1px 1px #eee inset;
+-webkit-box-shadow:1px 1px 1px #eee inset;
+width:100px;
+border:1px solid #dddddd;
+
+}
+
+input[type=text]:focus, textarea:focus {
+
+outline:0px solid black;
+background:#fafafa;
+
+}
+
+#comments {
+
+width:301px;
+height:185px;
+
+}
+
+#time {
+
+background: #dddddd; /* Old browsers */
+background: -moz-linear-gradient(top, #dddddd 0%, #bbbbbb 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#dddddd), color-stop(100%,#bbbbbb)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #dddddd 0%,#bbbbbb 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #dddddd 0%,#bbbbbb 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(top, #dddddd 0%,#bbbbbb 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#dddddd', endColorstr='#bbbbbb',GradientType=0 ); /* IE6-9 */
+background: linear-gradient(top, #dddddd 0%,#bbbbbb 100%); /* W3C */
+color:white;
+font-size:100px;
+font-family:arial;
+width:100%;
+margin-left:auto;
+margin-right:auto;
+text-align:center;
+text-shadow:2px 2px black;
+-moz-text-shadow:2px 2px black;
+}
+
+#time.flicker {
+
+background:blue;
+
+}
+
+#timelog {
+
+max-height:350px;
+overflow-y:scroll;
+border:1px solid #888;
+}
+
+#timelog big {
+
+padding:10px;
+display:block;
+
+}
+
+#timelog table {
+
+border:1px solid #eeeeee;
+border-collapse:0px;
+border-spacing:0px;
+
+}
+
+#timelog table td {
+
+padding:3px;
+padding-left:8px;
+padding-right:8px;
+
+}
+
+#timelog table tr {
+
+border:1px solid white;
+
+}
+
+#timelog table tr:first-child {
+
+}
+
+#timelog table tr:nth-of-type(even) {
+
+background:#fafafa;
+
+}
+
+#timelog table tr:hover {
+
+background:#ddd;
+border:1px solid #888;
+
+}
+
+
+#timelog table tr:first-child {
+
+background:#888;
+color:#ccc;
+
+}
+
+#timelog table tr.arch {
+
+background:gold;
+
+}
+
+#fp_headers {
+
+display:none;
+
+}
+
+#t_hr, #t_min, #t_sec,#et_bhr, #et_bmin, #et_bsec,#et_ehr, #et_emin, #et_esec, #st_hr, #st_min, #st_sec {
+
+width:33px;
+
+}
+
+button {
+
+color:#006;
+padding:8px;
+font-size:12pt;
+line-height:20px;
+border-radius:5px;
+-moz-border-radius:5px;
+-webkit-border-radius:5px;
+background: #eeeeee; /* Old browsers */
+background: -moz-linear-gradient(top, #eeeeee 0%, #cccccc 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#eeeeee), color-stop(100%,#cccccc)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #eeeeee 0%,#cccccc 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #eeeeee 0%,#cccccc 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(top, #eeeeee 0%,#cccccc 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#eeeeee', endColorstr='#cccccc',GradientType=0 ); /* IE6-9 */
+background: linear-gradient(top, #eeeeee 0%,#cccccc 100%); /* W3C */
+opacity:0.8;
+filter:Alpha(opacity=0.8);
+
+cursor:pointer;
+border:1px solid #ddd;
+
+}
+
+select {
+width:100%;
+}
+
+select.f {
+
+-webkit-appearance: none;
+-webkit-box-align: center;
+-webkit-box-shadow: white 1px 1px 1px 0px;
+-webkit-rtl-ordering: logical;
+-webkit-user-select: none;
+background-color: white;
+background-image: url(http://minnesota.twins.mlb.com/shared/images/icons/downarrow.png), -webkit-linear-gradient(top, #FAFAFA, #F4F4F4 40%, #E5E5E5);
+background-position: 97% 50%, 97% 50%;
+background-repeat: no-repeat, no-repeat;
+border-bottom-color: lightGrey;
+border-bottom-left-radius: 6px;
+border-bottom-right-radius: 6px;
+border-bottom-style: solid;
+border-bottom-width: 1px;
+border-left-color: lightGrey;
+border-left-style: solid;
+border-left-width: 1px;
+border-right-color: lightGrey;
+border-right-style: solid;
+border-right-width: 1px;
+border-top-color: lightGrey;
+border-top-left-radius: 6px;
+border-top-right-radius: 6px;
+border-top-style: solid;
+border-top-width: 1px;
+box-sizing: border-box;
+color: black;
+cursor: default;
+display: inline-block;
+filter: none;
+font-family: Arial, Helvetica, sans-serif;
+font-size: 12px;
+font-style: normal;
+font-variant: normal;
+font-weight: normal;
+height: 26px;
+letter-spacing: normal;
+line-height: normal;
+margin-bottom: 2px;
+margin-left: 2px;
+margin-right: 2px;
+margin-top: 2px;
+padding-bottom: 5px;
+padding-left: 5px;
+padding-right: 20px;
+padding-top: 5px;
+text-align: -webkit-auto;
+text-indent: 0px;
+text-shadow: none;
+text-transform: none;
+white-space: pre;
+word-spacing: 0px;
+
+}
+
+button:hover {
+
+opacity:1;
+filter:Alpha(opacity=1);
+
+}
+
+button:active {
+
+box-shadow:2px 2px 2px #ccc inset;
+-moz-box-shadow:2px 2px 2px #ccc inset;
+-webkit-box-shadow:2px 2px 2px #ccc inset;
+
+}
+
+button.r {
+
+float:right;
+
+}
+
+button.w {
+
+width:100% !important;
+
+}
+
+button.printer-icon {
+
+font-family:"Wingdings 2";
+
+}
+
+.h {
+
+display:none !important;
+
+}
+
+#done-main {
+
+display:inline-block;
+
+}
+
+.bgrp button.main {
+
+border-right:0px solid black;
+border-radius:5px 0px 0px 5px;
+-moz-border-radius:5px 0px 0px 5px;
+-webkit-border-radius:5px 0px 0px 5px;
+margin:0px; 
+}
+
+.bgrp button.more {
+
+border-left:1px solid #ccc;
+background-color:#fafafa;
+/*background-image:url("downarr.png");*/
+background-repeat:no-repeat;
+
+border-radius:0px 5px 5px 0px;
+-moz-border-radius:0px 5px 5px 0px;
+-webkit-border-radius:0px 5px 5px 0px;
+margin:0px;
+margin-left:-5px;
+
+
+}
+
+.bgrp.on button.more {
+
+background: #dddddd !important; /* Old browsers */
+background: -moz-linear-gradient(top, #dddddd 0%, #bbbbbb 100%) !important; /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#dddddd), color-stop(100%,#bbbbbb)) !important; /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Opera11.10+ */
+background: -ms-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#dddddd', endColorstr='#bbbbbb',GradientType=0 ) !important; /* IE6-9 */
+background: linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* W3C */
+
+}
+
+.bgrp button.more img {
+
+width:10px;
+max-height:20px;
+
+}
+
+.bgrp button:hover {
+
+background-color:#eeeeee;
+
+}
+
+.bgrp .bgrp-drop {
+
+display:none;
+position:absolute;
+z-index:3;
+background:white;
+border:1px solid #dddddd;
+border-top:1px solid #eeeeee;
+box-shadow:2px 4px 8px #dddddd;
+-webkit-box-shadow:4px 4px 4px #dddddd;
+-moz-box-shadow:4px 4px 4px #dddddd;
+padding-top:5px;
+padding-bottom:5px;
+margin-top:-3px;
+
+}
+
+.bgrp.on .bgrp-drop {
+
+display:block;
+
+}
+
+.bgrp .bgrp-drop span {
+
+cursor:default;
+display:block;
+padding:5px;
+
+}
+
+.bgrp .bgrp-drop span:hover {
+
+background:#eeeeee;
+
+}
+
+/* Modal Dialogs */
+
+#modalbg, #online-wait {
+
+width:100%;
+height:100%;
+position:fixed;
+top:0px; 
+left:0px;
+z-index:10;
+display:none;
+background:black;
+opacity:0.1;
+filter:Alpha(opacity=0.1);
+
+}
+
+#online-wait {
+
+opacity:0.7;
+filter:Alpha(opacity=0.7);
+z-index:100;
+display:block;
+color:white;
+font-size:30pt;
+text-align:center;
+padding-top:200px;
+
+}
+
+.modalbox {
+
+width:20%;
+margin-left:auto;
+margin-right:auto;
+top:15%;
+left:40%;
+position:fixed;
+z-index:11;
+background:#fafafa;
+display:none;
+border:2px solid #eee;
+box-shadow:2px 2px 2px #eee;
+-moz-box-shadow:2px 2px 2px #eee;
+-webkit-box-shadow:2px 2px 2px #eee;
+
+}
+
+.modaltitle {
+
+padding:5px;
+border-bottom:1px solid #eee;
+font-size:12pt;
+line-height:18px; 
+background: #dddddd !important; /* Old browsers */
+background: -moz-linear-gradient(top, #dddddd 0%, #bbbbbb 100%) !important; /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#dddddd), color-stop(100%,#bbbbbb)) !important; /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Opera11.10+ */
+background: -ms-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#dddddd', endColorstr='#bbbbbb',GradientType=0 ) !important; /* IE6-9 */
+background: linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* W3C */
+
+}
+
+.modalcontent {
+
+padding:12px;
+
+}
+
+.modalcontent table {
+
+font-size:10pt;
+
+}
+
+.modalclose {
+
+float:right;
+text-align:center;
+width:20px;
+display:inline-block;
+height:20px;
+border-radius:50%;
+-moz-border-radius:50%;
+-webkit-border-radius:50%;
+background:#eeeeee;
+cursor:pointer;
+font-family:verdana;
+position:relative;
+top:-25px;
+right:6px;
+padding:0px;
+
+}
+
+.close, .edit {
+
+float:right;
+text-align:center;
+width:20px;
+display:inline-block;
+height:20px;
+border-radius:50%;
+-moz-border-radius:50%;
+-webkit-border-radius:50%;
+background:#eeeeee;
+cursor:pointer;
+font-family:verdana;
+font-size:10pt;
+padding:0px;
+
+}
+
+.edit img {
+
+height:12px;
+width:12px;
+margin-top:4px;
+
+}
+
+.modalclose:hover, .close:hover, .edit:hover {
+
+background:#ddd;
+
+}
+
+.modaltools {
+
+height:40px;
+
+}
+
+.modaltools button {
+
+float:right;
+
+}
+
+.modaltools .chkbullets {
+
+float:left;
+margin-bottom:-10px;
+
+}
+
+.modalbox input[type=text], textarea{
+
+width:100%;
+
+}
+
+/* Text tabs */
+
+.tabs.text .tab-top
+{
+text-align:center;
+}
+
+.tabs.text .tab-top .tab
+{
+cursor:pointer;
+padding:10px;
+margin-bottom:8px;
+display:inline;
+color:#aaaaaa;
+font-size:110%;
+}
+
+.tabs.text .tab-top .tab:hover
+{
+color:#888888;
+border-top:1px dashed #888888;
+}
+
+.tabs.text .tab-top .tab.on
+{
+border-top:1px solid #000066;
+color:#000066;
+background:inset;
+cursor:auto;
+}
+
+/* Block tabs */
+
+.tabs.block .tab-top
+{
+height:46px;
+}
+
+.tabs.block .tab-top .tab
+{
+float:left;
+max-width:200px;
+cursor:pointer;
+padding:10px;
+margin-bottom:8px;
+display:block;
+color:#aaaaaa;
+font-size:140%;
+opacity:0.6;
+background: #eeeeee; /* Old browsers */
+height:25px;
+line-height:25px;
+/*border-right:1px solid #cccccc;
+border-left:1px solid #ffffff;*/
+box-shadow:2px 2px 2px #ddd;
+-moz-box-shadow:2px 2px 2px #ddd;
+-webkit-box-shadow:2px 2px 2px #ddd;
+}
+
+.tabs.block .tab-top .tab:hover
+{
+opacity:1;
+}
+
+.tabs.block .tab-top .tab.on
+{
+padding-top:12px;
+opacity:1;
+background: #dddddd; /* Old browsers */
+border-radius:3px 3px 0px 0px;
+-webkit-border-radius:3px 3px 0px 0px;
+-moz-border-radius:3px 3px 0px 0px;
+}
+
+.tabs.block .tab-top .tab.on .np
+{
+display:block;
+}
+
+/* Search list boxes */
+
+.slbx {
+
+display:inline-block;
+min-width:301px;
+
+}
+
+#fs_headers .slbx {
+
+display:inline-block;
+min-width:161px;
+
+}
+
+#cinfo .slbx, #pinfo .slbx, #linfo .slbx {
+
+min-width:172px;
+}
+
+.slbx .main {
+
+border-right:0px solid black;
+border-radius:5px 0px 0px 5px;
+-moz-border-radius:5px 0px 0px 5px;
+-webkit-border-radius:5px 0px 0px 5px;
+margin:0px; 
+}
+
+.slbx .srch {
+
+width:255px;
+line-height:26px;
+font-size:12pt;
+color:#006;
+padding-right:25px;
+
+}
+
+#fs_headers .slbx .srch {
+
+width:110px;
+font-size:10pt;
+padding-right:25px;
+
+}
+
+#cinfo .slbx .srch, #pinfo .slbx .srch, #linfo .slbx .srch {
+
+padding:5px;
+font-size:12px;
+width:120px; 
+line-height:normal;
+color:black;
+height:29px;
+padding-right:25px;
+
+}
+
+.slbx button.more {
+
+border-left:1px solid #ccc;
+background-color:#fafafa;
+/*background-image:url("downarr.png");*/
+background-repeat:no-repeat;
+
+border-radius:0px 5px 5px 0px;
+-moz-border-radius:0px 5px 5px 0px;
+-webkit-border-radius:0px 5px 5px 0px;
+margin:0px;
+margin-left:-5px;
+position:relative;
+top:-1px;
+
+}
+
+.slbx button.clr {
+
+float:right;
+text-align:center;
+width:20px;
+display:inline-block;
+height:20px;
+border-radius:50%;
+-moz-border-radius:50%;
+-webkit-border-radius:50%;
+background:none;
+cursor:pointer;
+font-family:verdana;
+font-size:13px !important;
+padding:0px;
+position:relative;
+left:-60px;
+bottom:-10px;
+display:none;
+border:0px solid black;
+color:red;
+
+}
+
+#cinfo .slbx button.clr, #pinfo .slbx button.clr, #linfo .slbx button.clr {
+
+bottom:-5px;
+
+}
+
+.slbx.on button.more {
+
+background: #dddddd !important; /* Old browsers */
+background: -moz-linear-gradient(top, #dddddd 0%, #bbbbbb 100%) !important; /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#dddddd), color-stop(100%,#bbbbbb)) !important; /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* Opera11.10+ */
+background: -ms-linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#dddddd', endColorstr='#bbbbbb',GradientType=0 ) !important; /* IE6-9 */
+background: linear-gradient(top, #dddddd 0%,#bbbbbb 100%) !important; /* W3C */
+
+}
+
+.slbx button.more img {
+
+width:10px;
+max-height:20px;
+
+}
+
+.slbx button:hover {
+
+background-color:red;
+color:white;
+
+}
+
+#cinfo .slbx button.more, #pinfo .slbx button.more, #linfo .slbx button.more {
+
+padding:3px;
+padding-right:6px;
+position:relative;
+bottom:0px;
+height:29px;
+z-index:2;
+
+}
+
+.slbx button:active {
+
+background-color:#d00;
+box-shadow:none;
+-moz-box-shadow:none;
+-webkit-box-shadow:none;
+
+}
+
+
+.slbx .slbx-drop {
+
+display:none;
+position:absolute;
+z-index:3;
+background:white;
+border:1px solid #dddddd;
+border-top:1px solid #eeeeee;
+box-shadow:2px 4px 8px #dddddd;
+-webkit-box-shadow:4px 4px 4px #dddddd;
+-moz-box-shadow:4px 4px 4px #dddddd;
+padding-top:5px;
+padding-bottom:5px;
+margin-top:-3px;
+font-size:10pt;
+
+}
+
+.slbx.on .slbx-drop {
+
+display:block;
+min-width:282px;
+max-height:150px;
+overflow-y:scroll;
+overflow-x:hidden;
+
+}
+
+#cinfo .slbx .slbx-drop, #pinfo .slbx .slbx-drop, #linfo .slbx .slbx-drop {
+
+min-width:180px;
+
+}
+
+.slbx .slbx-drop span {
+
+cursor:default;
+display:block;
+padding:5px;
+
+}
+
+.slbx .slbx-drop span:hover {
+
+background:#eeeeee;
+
+}
+
+/*.slbx .slbx-drop span.s {
+
+background:#006;
+color:white;
+
+}*/
+
+/* WA */
+
+.WA-bullet {
+
+width:10px;
+display:inline-block;
+height:10px;
+border-radius:50%;
+-moz-border-radius:50%;
+-webkit-border-radius:50%;
+border:1px solid #888;
+margin-right:10px;
+background:white;
+padding:0px;
+box-shadow:2px 2px 2px #dddddd inset;
+-webkit-box-shadow:2px 2px 2px #dddddd inset;
+-moz-box-shadow:2px 2px 2px #dddddd inset;
+
+}
+
+.WA-bullet.on {
+
+background:blue;
+box-shadow:none;
+-webkit-box-shadow:none;
+-moz-box-shadow:none;
+
+}
+
+</style>
+
+<style type="text/css" media="print" >
+		
+		#tabhead {
+		
+			display:none;
+		
+		}
+		
+		body {
+		
+			background:none;
+		
+		}
+		#page-wrap {
+		
+			width:800px;
+			border:0px solid black;
+			box-shadow:0px 0px 0px #000000;
+			-webkit-box-shadow:0px 0px 0px #000000;
+			-moz-box-shadow:0px 0px 0px #000000;
+		
+		}
+		#bot_panel {
+		
+			display:none;
+		
+		}
+		#timelog table {
+			border-spacing:0px;
+			
+		}
+		#timelog table td {
+		
+			border-bottom:1px solid #888;
+		
+		}
+				
+		button {
+		
+			display:none;
+			
+		}
+				
+		#fp_headers {
+		
+			display:block;
+		
+		}
+				
+		#fp_headers table {
+		
+			width:100%;
+		
+		}
+
+		#fp_headers table tr.b {
+		
+			font-weight:bold;
+		
+		}
+
+		#fs_headers {
+		
+			display:none;
+		
+		}
+		
+		.colops {
+		
+			display:none;
+		
+		}
+		
+		.print {
+		
+			display:block;
+		
+		}
+		
+		#timelog {
+
+		max-height:none;
+
+		}
+
+
+</style>
+
+</head>
+
+<body>
+<div class="print" >
+<br>
+<img class="logo" src="logo.png" /><h1>Time Report</h1>
+
+</div>
+<div id="page-wrap" >
+
+<div id="tabs" class="tabs block" >
+					<div id="tabhead" class="tab-top">
+					
+						<div id="now" class="tab tab-1"> <!-- class "on" set automatically -->
+							Now
+						<div class="np"></div></div>
+						<div id="companies" class="tab tab-2">
+							Companies
+						<div class="np"></div></div>
+						
+						<div id="projects" class="tab tab-3">
+							Projects
+						<div class="np"></div></div>
+
+						<div id="clients" class="tab tab-4">
+							Clients
+						<div class="np"></div></div>
+
+						<div id="print" class="tab tab-5">
+							Timelog
+						<div class="np"></div></div>
+
+						<div id="online-save" class="">
+							+ Save
+						<div class="np"></div></div>
+						
+						<div id="online-reload" onclick="fetchOnlineData()" class="">
+							&darr;&uarr;
+						<div class="np"></div></div>
+										
+					</div>
+					
+					<div id="tab-content" class="tab-content">
+					
+					<div class="tab tab-1" onclick="" >
+						
+						<br>
+						<div id="time" >
+							<span id="time_hr" >00</span>:
+							<span id="time_min" >00</span>:
+							<span id="time_sec" >00</span>
+						</div>
+					
+						<div id="actions" >
+						
+							<button id="start" >
+								Start
+							</button>
+							
+							<div id="done-main" class="bgrp" >
+								<button id="done" class="main" >
+									Done
+								</button>
+								<button id="done-more" class="more" >
+									<span>&nbsp;</span><img src="downarr.png" />
+								</button>
+								<span class="bgrp-drop" >
+								
+									<span class="timerStop" >Stop Timer</span>
+									<span class="timerStopSet" >Set Timer Length</span>
+									<span class="timerCancel" >Cancel</span>
+								
+								</span>
+							</div>
+								
+								<button id="t_log" onclick="newt()" >
+									Log Time
+								</button>
+													
+						</div>
+						
+						<br>
+						
+						<div id="details" >
+							
+							<table id="time_table" >
+							
+							<tr>
+							
+							<td>
+							
+							Company<br>
+							<select id="time_csel" size="5" class="csel srch" >
+							</select>
+							
+							<br/><br>
+							
+							Project<br>
+							<select id="time_psel" size="5" class="psel srch" >
+							</select>
+
+							<br/><br>
+							
+							Client<br>
+							<select id="time_lsel" size="5" class="lsel srch" >
+							</select>
+							
+							<br/><br>
+							
+							</td>
+							
+							<td>
+							
+							Comments:<br>
+							<textarea id="comments" ></textarea>
+							
+							</td>
+							
+							</tr>
+							
+							</table>
+												
+						</div>
+							
+							<!--button id="t_clear" onclick="clear()" class="r" >
+									Clear Fields
+							</button>
+							<br>
+							Be sure to select the correct settings BEFORE clicking "Done."								
+							<br-->
+						
+						
+					</div>
+					<div class="tab tab-2" onclick="" >
+						
+						<br> 
+						
+						<table><tr><td>
+						<button id="newc" >&nbsp;+&nbsp;</button></td><td>
+						<select id="main_csel" class="csel srch" ></select></td></tr></table>
+						
+						<div id="cinfo" >
+							
+							<br><hr><br>
+
+							
+							<button onclick="timeLog_c();" class="r" >View Time Log</button>
+
+							Company Name
+							<input type="text" id="cview_name" />
+							
+							<br><br>
+							
+							<div id="cview_proj" >
+							
+								Associated projects
+								<select id="cview_plist" size="6" class="psel" ></select>
+							
+							</div>
+
+							<div id="cview_cli" >
+							
+								Associated clients
+								<select id="cview_llist" size="6" class="lsel" ></select>
+							
+							</div>
+							
+							<br><br>
+							
+							<input type='checkbox' id='cview_arch' />
+							<label for='cview_arch' >Archived</label>
+
+							<button onclick="savecv();" class="r" >Save Changes</button>
+							<button onclick="loadcv(curc().cid)" class="r" >Cancel</button>
+							<button onclick="delc(curc().cid);loadcv(curc().cid);" class="r" >Delete</button>
+							
+							<br><br>
+							
+						</div>
+					
+					
+					</div>
+					<div class="tab tab-3" onclick="" >
+						
+						<br>
+																		
+						<table><tr><td>
+						<button id="newp" >&nbsp;+&nbsp;</button></td><td>
+						<select id="main_psel" class="psel srch" ></select></td></tr></table>
+						
+						<div id="pinfo" >
+
+						<br><hr><br>
+
+							<button onclick="timeLog_p();" class="r" >View Time Log</button>
+							
+							Project Name
+							<input type="text" id="pview_name" />
+							
+							<br><br>
+							
+							Associated Company:<br>
+							<select id="pview_com" class="csel srch" ></select>
+							
+							<br><br>
+													
+								Associated clients
+								<select id="pview_cli" size="6" class="lsel" ></select>
+																					
+							<br><br>
+							
+							Comments/Notes
+							<textarea id="pview_comments" ></textarea>
+							
+							<br><br>
+
+							<input type='checkbox' id='pview_arch' />
+							<label for='pview_arch' >Archived</label>
+							
+							<button onclick="savepv();loadpv(curp().pid);" class="r" >Save Changes</button>
+							<button onclick="loadpv(curp().pid)" class="r" >Cancel</button>
+							<button onclick="delp(curp().pid);loadpv(curp().pid);" class="r" >Delete</button>
+							
+							<br><br>
+				
+						</div>
+										
+					</div>
+
+					<div class="tab tab-4" onclick="" >
+						
+						<br> 
+
+						<table><tr><td>
+						<button id="newl" >&nbsp;+&nbsp;</button></td><td>
+						<select id="main_lsel" class="lsel srch" ></select></td></tr></table>
+						
+						<div id="linfo" >
+							
+						<br><hr><br>
+
+							<button onclick="timeLog_l();" class="r" >View Time Log</button>
+							
+							Client Name
+							<input type="text" id="lview_name" />
+							
+							<br><br>
+							
+							Associated Company:<br>
+							<select id="lview_com" class="csel srch" ></select>
+							
+							<br><br>
+							
+							<div id="lview_proj" >
+							
+								Associated projects
+								<select id="lview_plist" size="6" class="psel" ></select>
+							
+							</div>
+														
+							<br>
+
+							<input type='checkbox' id='lview_arch' />
+							<label for='lview_arch' >Archived</label>
+														
+							<button onclick="savelv();loadlv(curl().lid);" class="r" >Save Changes</button>
+							<button onclick="loadlv(curl().lid)" class="r" >Cancel</button>
+							<button onclick="dell(curl().lid);loadlv(curl().lid);" class="r" >Delete</button>
+							
+							<br><br>
+				
+						</div>										
+					
+					</div>
+
+					<div class="tab tab-5" onclick="" >
+						
+						<div id="fp_headers" >
+						<table>
+							<tr>
+								<td>Company</td>
+								<td>Project</td>
+								<td>Client</td>
+								<td>Min Date</td>
+								<td>Max Date</td>
+							</tr>
+							<tr class="b" >
+								<td id="fpc" >
+									
+								</td>
+								<td id="fpp" >
+									
+								</td>
+								<td id="fpl" >
+									
+								</td>
+								<td id="fpd1" >
+									
+								</td>
+								<td id="fpd2" >
+									
+								</td>
+							</tr>
+						</table>
+						
+						<hr>
+						
+						</div>
+						
+						<div id="fs_headers" >
+						<br>
+						Filters:
+						<br>
+						<table>
+							<tr>
+								<td>Company</td>
+								<td>Project</td>
+								<td>Client</td>
+								<td>Min Date</td>
+								<td>Max Date</td>
+							</tr>
+							<tr>
+								<td>
+									<select id="filter_csel" class="csel srch" ></select>
+								</td>
+								<td>
+									<select id="filter_psel" class="psel srch" ></select>
+								</td>
+								<td>
+									<select id="filter_lsel" class="lsel srch" ></select>
+								</td>
+								<td>
+									<input type="date" id="filter_dmin" class="live" />
+								</td>
+								<td>
+									<input type="date" id="filter_dmax"  class="live" />
+								</td>
+							</tr>
+						</table>
+						<!--button id="filter_apply" onclick="filter_apply()" class="r" >Apply Filters</button-->
+						<button id="filter_print" onclick="filter_print()" class="r" >Print</button>
+						<button id="filter_clear" onclick="filter_clear(); filter_apply();" class="r" >Clear</button>
+					
+						<br><hr><br>
+						
+						</div>
+					
+						<div id="timelog" >
+						
+						</div>
+					
+					</div>
+					
+					
+			</div>
+</div>
+
+
+</div>
+
+<div id="modalbg" ></div>
+
+<div id="modalgrp" >
+
+<div id="company" class="modalbox" >
+
+<div class="modaltitle" >
+
+Add New Company
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Company Name:
+<input type="text" id="cname" />
+
+</div>
+
+<div class="modaltools" >
+
+<button id="make-company" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="timerSet" class="modalbox" >
+
+<div class="modaltitle" >
+
+Set Timer
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Length:
+<input id="st_hr" />:<input id="st_min" />:<input id="st_sec" />
+
+</div>
+
+<div class="modaltools" >
+
+<button id="set-time" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="client" class="modalbox" >
+
+<div class="modaltitle" >
+
+Add New Client
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Client Name:
+<input type="text" id="lname" />
+
+</div>
+
+<div class="modaltools" >
+
+<button id="make-client" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="project" class="modalbox" >
+
+<div class="modaltitle" >
+
+Add New Project
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Project Name:
+<input type="text" id="pname" />
+
+<br/><br/>
+
+<select id="p_cid" class="csel f" ></select>
+
+<br/>
+
+<select id="p_lid" class="lsel f" ></select>
+
+<br/><br>
+
+Comments/Notes:
+<textarea id="p_com" ></textarea>
+
+<br>
+
+</div>
+
+<div class="modaltools" >
+
+<button id="make-project" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="logtime" class="modalbox" >
+
+<div class="modaltitle" >
+
+Log Time
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Date:
+<input type="date" id="t_beg" />
+<script type="text/javascript" >
+
+
+$(document).ready(function(){
+
+var h = new Date();
+
+var d = "" + h.getFullYear() + "-" + (h.getMonth()+1) + "-" + h.getDate();
+
+$("#t_beg").val(d);
+
+});
+
+</script>
+
+<br>
+
+Length:
+<input id="t_hr" value="a" />:<input id="t_min" value="00" />:<input id="t_sec" value="00" />
+
+<br><br>
+
+<select id="t_pid" class="psel f" ></select>
+
+<br/>
+
+<select id="t_cid" class="csel f"></select>
+
+<br/>
+
+<select id="t_lid" class="lsel f"></select>
+
+<br/><br>
+
+Comments/Notes:
+<textarea id="t_com" ></textarea>
+
+<br>
+
+</div>
+
+<div class="modaltools" >
+
+<button id="make-time" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="edittime" class="modalbox" >
+
+<div class="modaltitle" >
+
+Edit Time
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+<table>
+<tr>
+<td>Start Date</td>
+<td>Start Time</td>
+</tr>
+<td><input type="date" id="et_beg" /></td>
+<td><input id="et_bhr" />:<input id="et_bmin" /><input type="hidden" id="et_bsec" /></td>
+</tr>
+</table>
+
+
+<table>
+<tr>
+<td>End Date</td>
+<td>End Time</td>
+</tr>
+<td><input type="date" id="et_end" /></td>
+<td><input id="et_ehr" />:<input id="et_emin" /><input type="hidden" id="et_esec" /></td>
+</tr>
+</table>
+
+<hr>
+
+<select id="et_pid" class="psel f" ></select>
+
+<br/>
+
+<select id="et_cid" class="csel f"></select>
+
+<br/>
+
+<select id="et_lid" class="lsel f"></select>
+
+<br/><br>
+
+<input type="hidden" id="et_tid" >
+
+Comments/Notes:
+<textarea id="t_com" ></textarea>
+
+<br>
+
+</div>
+
+<div class="modaltools" >
+
+<input type='checkbox' id='et_arch' />
+<label for='et_arch' >Archived</label>
+
+<button id="edit-time" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="options" class="modalbox" >
+
+<div class="modaltitle" >
+
+Options
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+<input type='checkbox' id='o_arch' />
+<label for='o_arch' >Show archived data</label>
+
+<br><br>
+
+<input type='checkbox' id='o_online' />
+<label for='o_online' >Online</label>
+ | 
+<input type='checkbox' id='o_autosave' />
+<label for='o_autosave' >Auto-save</label>
+
+<br><br>
+
+Username:
+<button onclick="acct()" ><span id="userid_disp" ></span></button>
+
+</div>
+
+<div class="modaltools" >
+
+<button id="save-ops" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="online-wait" class="modalbox" >
+
+<div class="modalcontent" >
+
+Loading...
+
+<br><br>
+
+<a href="#" onclick="localStorage.clear(); window.location.reload()" >Cancel</a>
+
+</div>
+
+</div>
+
+<div id="saved" class="modalbox" >
+
+<div class="modalcontent" >
+
+The save was successful. 
+
+</div>
+
+<div class="modaltools" >
+
+<button class="modalcancel" >OK</button>
+
+</div>
+
+</div>
+
+<div id="unsaved" class="modalbox" >
+
+<div class="modalcontent" >
+
+There was a problem. Check your internet connection and try again.
+
+</div>
+
+<div class="modaltools" >
+
+<button class="modalcancel" >OK</button>
+
+</div>
+
+</div>
+
+<div id="acct" class="modalbox" >
+
+<div class="modaltitle" >
+
+Switch Account
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+<label for='o_userid' >User ID</label>
+
+<input type='text' id='o_userid' />
+
+<label for='o_pass' >Password</label>
+
+<input type='text' id='o_pass' />
+
+<div id="wrongpassword" >Incorrect password.</div>
+
+<label for='o_np' >New Password</label>
+
+<input type='text' id='o_np' />
+
+<br>
+
+</div>
+
+<div class="modaltools" >
+
+<div id="chkbullets" ></div>
+
+<button id="save-acct" >OK</button>
+<button class="modalcancel" >Cancel</button>
+
+</button>
+
+</div>
+
+</div>
+
+<div id="acct-err" class="modalbox" >
+
+<div class="modaltitle" >
+
+Error
+
+</div>
+
+<div class="modalclose" >x</div>
+
+<div class="modalcontent" >
+
+Your username or password is incorrect. 
+
+</div>
+
+<div class="modaltools" >
+
+<button class="modalcancel" >OK</button>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<div id="bot_panel" >
+<div class="inner" >
+<img src="logo.png" class="logo" />
+<span>Copyright &copy; <script>document.write(new Date().getFullYear())</script> Brazeal Content Partners.</span>
+<button id="ops" >Options</button>
+</div>
+</div>
+
+<form id="save" action="http://portal.brazealcontent.com/tl/save.php" method="POST" >
+
+<input type="hidden" name="user" id="save-user" />
+<input type="hidden" name="password" id="save-pwd" />
+<input type="hidden" name="t" id="save-t" />
+<input type="hidden" name="c" id="save-c" />
+<input type="hidden" name="p" id="save-p" />
+<input type="hidden" name="l" id="save-l" />
+<input type="hidden" name="o" id="save-o" />
+<input type="hidden" name="return" id="save-return" />
+<input type="hidden" name="returnp" id="save-returnp" />
+
+</form>
+
+</body>
+
+</html>
